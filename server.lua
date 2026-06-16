@@ -18,16 +18,36 @@ local function GetIdentifier(xPlayer)
     return xPlayer.identifier
 end
 
-local function GetPersistentKeys(xPlayer)
-    if not Config.PersistentKeys or not xPlayer then return {} end
-    if not xPlayer.getMeta then return {} end
+local function CloneTable(source)
+    local clone = {}
+    if type(source) ~= 'table' then return clone end
 
-    local ok, keys = pcall(function()
+    for key, value in pairs(source) do
+        clone[key] = value
+    end
+
+    return clone
+end
+
+local function GetPersistentKeys(xPlayer)
+    if not Config.PersistentKeys or not xPlayer or not xPlayer.getMeta then return {} end
+
+    -- This ESX build supports xPlayer.getMeta() with no args, which safely returns
+    -- the whole metadata table without tripping Config.EnableDebug on missing keys.
+    local okMeta, metadata = pcall(function()
+        return xPlayer.getMeta()
+    end)
+
+    if okMeta and type(metadata) == 'table' and type(metadata.vehicleKeys) == 'table' then
+        return CloneTable(metadata.vehicleKeys)
+    end
+
+    local okKeys, keys = pcall(function()
         return xPlayer.getMeta('vehicleKeys')
     end)
 
-    if ok and type(keys) == 'table' then
-        return keys
+    if okKeys and type(keys) == 'table' then
+        return CloneTable(keys)
     end
 
     return {}
@@ -37,8 +57,40 @@ local function SetPersistentKeys(xPlayer, keys)
     if not Config.PersistentKeys or not xPlayer or not xPlayer.setMeta then return end
 
     pcall(function()
-        xPlayer.setMeta('vehicleKeys', keys)
+        xPlayer.setMeta('vehicleKeys', keys or {})
     end)
+end
+
+local function AddPersistentKey(xPlayer, plate)
+    if not Config.PersistentKeys or not xPlayer or not plate then return end
+
+    if xPlayer.setMeta then
+        local ok = pcall(function()
+            xPlayer.setMeta('vehicleKeys', plate, true)
+        end)
+
+        if ok then return end
+    end
+
+    local keys = GetPersistentKeys(xPlayer)
+    keys[plate] = true
+    SetPersistentKeys(xPlayer, keys)
+end
+
+local function RemovePersistentKey(xPlayer, plate)
+    if not Config.PersistentKeys or not xPlayer or not plate then return end
+
+    if xPlayer.clearMeta then
+        local ok = pcall(function()
+            xPlayer.clearMeta('vehicleKeys', plate)
+        end)
+
+        if ok then return end
+    end
+
+    local keys = GetPersistentKeys(xPlayer)
+    keys[plate] = nil
+    SetPersistentKeys(xPlayer, keys)
 end
 
 local function GetPlayer(source)
@@ -92,16 +144,48 @@ local function GetVehicleKeysForPlayer(source)
     return keysList
 end
 
+local function GetESXCustomInventory()
+    if not ESX.GetConfig then return nil end
+
+    local ok, customInventory = pcall(function()
+        return ESX.GetConfig('CustomInventory')
+    end)
+
+    if ok then return customInventory end
+    return nil
+end
+
+local function ShouldRegisterUsableLockpickItems()
+    local mode = Config.RegisterLockpickUsableItems
+    if mode == false or mode == 'disabled' or mode == 'none' then return false end
+    if not ESX.RegisterUsableItem then return false end
+
+    local customInventory = GetESXCustomInventory()
+    if mode == 'auto' and customInventory == 'qs' then
+        print("[esx-vehiclekeys] ESX CustomInventory qs detected; skipping ESX.RegisterUsableItem because this es_extended bridge calls qs-inventory:CreateUsableItem, which is missing in some QS builds. Configure QS item usage to trigger esx_vehiclekeys:client:UseLockpick instead, or set Config.RegisterLockpickUsableItems = 'esx' to force it.")
+        return false
+    end
+
+    return true
+end
+
+local function RegisterUsableLockpickItem(itemName, isAdvanced)
+    local ok, err = pcall(function()
+        ESX.RegisterUsableItem(itemName, function(source)
+            TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, isAdvanced)
+        end)
+    end)
+
+    if not ok then
+        print(('[esx-vehiclekeys] Failed to register usable item %s: %s'):format(itemName, tostring(err)))
+    end
+end
+
 local function RegisterUsableLockpickItems()
-    if not ESX.RegisterUsableItem then return end
+    if not ShouldRegisterUsableLockpickItems() then return end
 
-    ESX.RegisterUsableItem('lockpick', function(source)
-        TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, false)
-    end)
-
-    ESX.RegisterUsableItem('advancedlockpick', function(source)
-        TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, true)
-    end)
+    RegisterUsableLockpickItem('lockpick', false)
+    RegisterUsableLockpickItem('advancedlockpick', true)
 end
 
 -----------------------
@@ -230,9 +314,7 @@ function GiveKeys(id, plate)
     if not VehicleList[plate] then VehicleList[plate] = {} end
     VehicleList[plate][identifier] = true
 
-    local oldKeys = GetPersistentKeys(xPlayer)
-    oldKeys[plate] = true
-    SetPersistentKeys(xPlayer, oldKeys)
+    AddPersistentKey(xPlayer, plate)
 
     Notify(id, Lang:t('notify.vgetkeys'), 'success')
     TriggerClientEvent('esx_vehiclekeys:client:AddKeys', id, plate)
@@ -255,9 +337,7 @@ function RemoveKeys(id, plate)
         VehicleList[plate][identifier] = nil
     end
 
-    local oldKeys = GetPersistentKeys(xPlayer)
-    oldKeys[plate] = nil
-    SetPersistentKeys(xPlayer, oldKeys)
+    RemovePersistentKey(xPlayer, plate)
 
     TriggerClientEvent('esx_vehiclekeys:client:RemoveKeys', id, plate)
 end

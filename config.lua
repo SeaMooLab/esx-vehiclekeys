@@ -21,6 +21,10 @@ Config.LockNPCDrivingCars = true
 Config.LockNPCParkedCars = true
 
 -- Lockpick Settings
+-- 'auto' skips ESX.RegisterUsableItem when this ESX build is using the qs-inventory bridge,
+-- because that bridge calls qs-inventory:CreateUsableItem and some QS builds do not export it.
+-- Use 'esx' to force ESX.RegisterUsableItem, or false to disable automatic registration.
+Config.RegisterLockpickUsableItems = 'auto'
 Config.RemoveLockpickNormal = 0.5
 Config.RemoveLockpickAdvanced = 0.2
 Config.LockpickSuccessChance = 0.55

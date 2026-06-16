@@ -27,9 +27,23 @@ ensure esx-vehiclekeys
 
 ## Compatibility notes
 
+### QS inventory note
+
+This ESX build ships with `Config.CustomInventory = 'qs'`, and its QS bridge calls `exports['qs-inventory']:CreateUsableItem(...)` from `ESX.RegisterUsableItem`. Your QS inventory build does not provide that export, so the resource now defaults `Config.RegisterLockpickUsableItems = 'auto'` and skips ESX usable-item registration when the QS bridge is detected. That prevents startup from faceplanting.
+
+For QS inventory, configure your lockpick item use handler to trigger one of these client events:
+
+```lua
+TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, false) -- normal lockpick
+TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, true)  -- advanced lockpick
+```
+
+If you later fix/replace the QS bridge so `ESX.RegisterUsableItem` works, set `Config.RegisterLockpickUsableItems = 'esx'`.
+
+
 This port intentionally does not depend on `qb-core`, `qb-inventory`, `qb-minigames`, or `progressbar`. Lockpicking uses a dependency-free timed progress fallback and configurable success chances. If you want a fancy minigame, wire your minigame export into `UseLockpick` in `client.lua`; the integration point is deliberately small so you do not have to surgically extract QBCore spaghetti with barbecue tongs.
 
-Persistent keys use `xPlayer.getMeta('vehicleKeys')` / `xPlayer.setMeta('vehicleKeys', keys)` when available. If your ESX build or inventory replaces metadata behavior, set `Config.PersistentKeys = false` or adapt `GetPersistentKeys` and `SetPersistentKeys` in `server.lua`.
+Persistent keys now match the current ESX metadata API shape from `server/classes/player.lua`: reads use `xPlayer.getMeta()` first so missing `vehicleKeys` does not explode under `Config.EnableDebug`, adds use `xPlayer.setMeta('vehicleKeys', plate, true)`, and removals use `xPlayer.clearMeta('vehicleKeys', plate)` when available. The table-write fallback is still there for older/custom ESX builds, because FiveM resources age like milk in a hot car.
 
 ## Exports
 

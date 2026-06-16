@@ -20,8 +20,9 @@ FORBIDDEN = [
 REQUIRED = {
     'fxmanifest.lua': ['dependency \'es_extended\'', "client_script 'client.lua'", "server_script 'server.lua'"],
     'client.lua': ["exports['es_extended']:getSharedObject()", 'ESX.TriggerServerCallback', 'RegisterNetEvent(\'esx:playerLoaded\''],
-    'server.lua': ["exports['es_extended']:getSharedObject()", 'ESX.RegisterServerCallback', 'ESX.RegisterUsableItem'],
+    'server.lua': ["exports['es_extended']:getSharedObject()", 'ESX.RegisterServerCallback', 'ShouldRegisterUsableLockpickItems', "ESX.GetConfig('CustomInventory')", "xPlayer.getMeta()", "xPlayer.setMeta('vehicleKeys', plate, true)", "xPlayer.clearMeta('vehicleKeys', plate)"],
     'NUI/script.js': ['GetParentResourceName()', "postAction('closui')"],
+    'config.lua': ["Config.RegisterLockpickUsableItems = 'auto'"],
 }
 
 
