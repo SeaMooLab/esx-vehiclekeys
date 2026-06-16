@@ -13,6 +13,7 @@ local Translations = {
         vehclose = 'There\'s no close vehicle!',
         no_permission = 'You do not have permission to use this command.',
         broke_lockpick = 'Your lockpick broke.',
+        lockpick_cancelled = 'Lockpicking canceled.',
     },
     progress = {
         takekeys = 'Taking keys from body...',

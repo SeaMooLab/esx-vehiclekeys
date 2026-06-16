@@ -8,6 +8,7 @@ ESX Legacy port of [`qbcore-framework/qb-vehiclekeys`](https://github.com/qbcore
 - `/givekeys`, `/addkeys`, and `/removekeys` commands.
 - Lock/unlock/engine toggles and draggable keyfob NUI.
 - Lockpick and advanced lockpick usable item hooks.
+- Animated lockpicking with progressbar/help-notification fallback.
 - Hotwiring, NPC vehicle locking, carjacking, police alerts, and shared job keys.
 - QB event aliases for common integration compatibility.
 
@@ -31,20 +32,29 @@ ensure esx-vehiclekeys
 
 This ESX build can ship with `Config.CustomInventory = 'qs'`, and its QS bridge may call `exports['qs-inventory']:CreateUsableItem(...)` from `ESX.RegisterUsableItem`. Some QS inventory builds do not provide that export, so the resource defaults `Config.RegisterLockpickUsableItems = 'auto'` and skips ESX usable-item registration when the QS bridge is detected. That prevents startup from faceplanting.
 
-For QS inventory, configure your lockpick item use handler to trigger one of these client events:
+For QS inventory, configure your lockpick item use handler to trigger one of these events:
 
 ```lua
-TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, false) -- normal lockpick
-TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, true)  -- advanced lockpick
+TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle', source, false) -- normal lockpick
+TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle', source, true)  -- advanced lockpick
 ```
 
-If you later fix/replace the QS bridge so `ESX.RegisterUsableItem` works, set `Config.RegisterLockpickUsableItems = 'esx'`.
+Or, from a server-side item event:
+
+```lua
+TriggerEvent('esx_vehiclekeys:server:UseLockpickItem', source, false) -- normal lockpick
+TriggerEvent('esx_vehiclekeys:server:UseLockpickItem', source, true)  -- advanced lockpick
+```
+
+`esx_vehiclekeys:client:UseLockpick` is still available as a backwards-compatible client event. If you later fix/replace the QS bridge so `ESX.RegisterUsableItem` works, set `Config.RegisterLockpickUsableItems = 'esx'`.
 
 ### Lockpicking and key search flow
 
-Successful lockpicking now unlocks the vehicle and marks that plate as searchable instead of immediately granting keys. The driver must enter the vehicle and use the `[H] - Search for Keys` interaction to receive keys, controlled by `Config.RequireLockpickForSearchKeys` and `Config.LockpickedSearchGuaranteesKeys`. Failed lockpicks do not enable the search prompt.
+Successful lockpicking unlocks the vehicle and marks that plate as searchable instead of immediately granting keys. The driver must enter the vehicle and use the `[H] - Search for Keys` interaction to receive keys, controlled by `Config.RequireLockpickForSearchKeys` and `Config.LockpickedSearchGuaranteesKeys`. Failed lockpicks do not enable the search prompt.
 
-The in-vehicle search prompt is drawn every frame while active, which avoids the flickering caused by showing frame-bound text from a slow loop. Lockpicking/search progress tries `ESX.Progressbar` first if `esx_progressbar` is installed; otherwise it falls back to `ESX.ShowHelpNotification`, not a noisy feed notification or 3D hover text.
+The in-vehicle search prompt is drawn every frame while active, which avoids flickering caused by showing frame-bound text from a slow loop. Lockpicking/search progress tries `ESX.Progressbar` first if `esx_progressbar` is installed; otherwise it falls back to `ESX.ShowHelpNotification`, not a noisy feed notification or 3D hover text.
+
+Lockpicking now plays a configurable mechanic-style animation (`Config.LockpickAnimation`) while the timed lockpick progress runs. The default animation uses `anim@amb@clubhouse@tutorial@bkr_tut_ig3@` / `machinic_loop_mechandplayer` with flag `49`; tweak that config if your server prefers a different animation.
 
 ### General notes
 

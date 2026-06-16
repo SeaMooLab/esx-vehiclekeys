@@ -172,7 +172,7 @@ end
 local function RegisterUsableLockpickItem(itemName, isAdvanced)
     local ok, err = pcall(function()
         ESX.RegisterUsableItem(itemName, function(source)
-            TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, isAdvanced)
+            TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle', source, isAdvanced)
         end)
     end)
 
@@ -214,6 +214,19 @@ RegisterNetEvent('esx_vehiclekeys:server:breakLockpick', function(itemName)
 
     xPlayer.removeInventoryItem(itemName, 1)
     Notify(src, Lang:t('notify.broke_lockpick'), 'error')
+end)
+
+RegisterNetEvent('esx_vehiclekeys:server:UseLockpickItem', function(firstArg, secondArg)
+    local target = source
+    local isAdvanced = firstArg == true
+
+    if type(firstArg) == 'number' then
+        target = firstArg
+        isAdvanced = secondArg == true
+    end
+
+    if not target or target <= 0 then return end
+    TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle', target, isAdvanced)
 end)
 
 RegisterNetEvent('esx_vehiclekeys:server:setVehLockState', function(vehNetId, state)

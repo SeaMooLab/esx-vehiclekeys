@@ -19,10 +19,10 @@ FORBIDDEN = [
 
 REQUIRED = {
     'fxmanifest.lua': ['dependency \'es_extended\'', "client_script 'client.lua'", "server_script 'server.lua'"],
-    'client.lua': ["exports['es_extended']:getSharedObject()", 'ESX.TriggerServerCallback', 'RegisterNetEvent(\'esx:playerLoaded\'', 'ShowHelpNotification', 'TryStartProgressbar', 'CanSearchVehicleForKeys'],
-    'server.lua': ["exports['es_extended']:getSharedObject()", 'ESX.RegisterServerCallback', 'ShouldRegisterUsableLockpickItems', "ESX.GetConfig('CustomInventory')", "xPlayer.getMeta()", "xPlayer.setMeta('vehicleKeys', plate, true)", "xPlayer.clearMeta('vehicleKeys', plate)"],
+    'client.lua': ["exports['es_extended']:getSharedObject()", 'ESX.TriggerServerCallback', 'RegisterNetEvent(\'esx:playerLoaded\'', 'ShowHelpNotification', 'TryStartProgressbar', 'CanSearchVehicleForKeys', "RegisterNetEvent('esx_vehiclekeys:client:LockpickVehicle'", 'TaskTurnPedToFaceEntity', 'Config.LockpickAnimation'],
+    'server.lua': ["exports['es_extended']:getSharedObject()", 'ESX.RegisterServerCallback', 'ShouldRegisterUsableLockpickItems', "ESX.GetConfig('CustomInventory')", "xPlayer.getMeta()", "xPlayer.setMeta('vehicleKeys', plate, true)", "xPlayer.clearMeta('vehicleKeys', plate)", "TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle'"],
     'NUI/script.js': ['GetParentResourceName()', "postAction('closui')"],
-    'config.lua': ["Config.RegisterLockpickUsableItems = 'auto'", 'Config.RequireLockpickForSearchKeys = true', 'Config.LockpickedSearchGuaranteesKeys = true'],
+    'config.lua': ["Config.RegisterLockpickUsableItems = 'auto'", 'Config.RequireLockpickForSearchKeys = true', 'Config.LockpickedSearchGuaranteesKeys = true', 'Config.LockpickAnimation'],
 }
 
 

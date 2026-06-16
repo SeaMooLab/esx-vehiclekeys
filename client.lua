@@ -168,10 +168,13 @@ local function Progress(label, duration, animation, onDone, onCancel)
     local ped = PlayerPedId()
     local canceled = false
     local usingProgressbar = TryStartProgressbar(label, duration)
+    local animDict = animation and (animation.dict or animation.AnimDict)
+    local animName = animation and (animation.name or animation.anim or animation.Anim)
+    local animFlags = animation and (animation.flags or animation.Flags) or 16
 
-    if animation and animation.dict and animation.name then
-        loadAnimDict(animation.dict)
-        TaskPlayAnim(ped, animation.dict, animation.name, 8.0, -8.0, -1, animation.flags or 16, 0, false, false, false)
+    if animDict and animName then
+        loadAnimDict(animDict)
+        TaskPlayAnim(ped, animDict, animName, 8.0, -8.0, -1, animFlags, 0, false, false, false)
     end
 
     CreateThread(function()
@@ -186,7 +189,7 @@ local function Progress(label, duration, animation, onDone, onCancel)
             if not usingProgressbar then
                 ShowHelpNotification(label, true)
             end
-            if IsEntityDead(ped) then
+            if IsEntityDead(ped) or IsPedRagdoll(ped) then
                 canceled = true
                 break
             end
@@ -196,8 +199,8 @@ local function Progress(label, duration, animation, onDone, onCancel)
         if canceled and usingProgressbar and ESX and ESX.CancelProgressbar then
             pcall(ESX.CancelProgressbar)
         end
-        if animation and animation.dict and animation.name then
-            StopAnimTask(ped, animation.dict, animation.name, 1.0)
+        if animDict and animName then
+            StopAnimTask(ped, animDict, animName, 1.0)
         end
 
         if canceled then
@@ -344,6 +347,10 @@ end)
 
 RegisterNetEvent('esx_vehiclekeys:client:UseLockpick', function(isAdvanced)
     UseLockpick(isAdvanced)
+end)
+
+RegisterNetEvent('esx_vehiclekeys:client:LockpickVehicle', function(isAdvanced)
+    UseLockpick(isAdvanced == true)
 end)
 
 RegisterNetEvent('lockpicks:UseLockpick', function(isAdvanced)
@@ -859,8 +866,17 @@ function UseLockpick(isAdvanced)
     local duration = isAdvanced and Config.AdvancedLockpickTime or Config.LockpickTime
     local successChance = isAdvanced and Config.AdvancedLockpickSuccessChance or Config.LockpickSuccessChance
     local itemName = isAdvanced and 'advancedlockpick' or 'lockpick'
+    local animation = Config.LockpickAnimation or {
+        dict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@',
+        name = 'machinic_loop_mechandplayer',
+        flags = 49,
+    }
 
-    Progress(Lang:t('progress.picklock'), duration, nil, function()
+    SetCurrentPedWeapon(ped, `WEAPON_UNARMED`, true)
+    TaskTurnPedToFaceEntity(ped, vehicle, 500)
+    Wait(500)
+
+    Progress(Lang:t('progress.picklock'), duration, animation, function()
         local success = math.random() <= successChance
         local chance = math.random()
 
@@ -877,6 +893,8 @@ function UseLockpick(isAdvanced)
         if chance <= threshold then
             TriggerServerEvent('esx_vehiclekeys:server:breakLockpick', itemName)
         end
+    end, function()
+        Notify(Lang:t('notify.lockpick_cancelled'), 'error')
     end)
 end
 

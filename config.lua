@@ -31,6 +31,11 @@ Config.LockpickSuccessChance = 0.55
 Config.AdvancedLockpickSuccessChance = 0.75
 Config.LockpickTime = 7500
 Config.AdvancedLockpickTime = 4500
+Config.LockpickAnimation = {
+    dict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@',
+    name = 'machinic_loop_mechandplayer',
+    flags = 49,
+}
 Config.UseESXProgressbar = true
 Config.RequireLockpickForSearchKeys = true
 Config.LockpickedSearchGuaranteesKeys = true
