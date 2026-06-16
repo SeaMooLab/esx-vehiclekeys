@@ -9,6 +9,7 @@ local isCarjacking = false
 local canCarjack = true
 local alertSent = false
 local lastPickedVehicle = nil
+local searchableKeyPlates = {}
 local isHotwiring = false
 local trunkClose = true
 local progressActive = false
@@ -30,6 +31,46 @@ end
 local function GetPlate(vehicle)
     if not vehicle or vehicle == 0 then return nil end
     return Trim(GetVehicleNumberPlateText(vehicle))
+end
+
+
+local function ShowHelpNotification(message, thisFrame, duration)
+    if ESX and ESX.ShowHelpNotification then
+        ESX.ShowHelpNotification(message, thisFrame == true, false, duration or -1)
+        return
+    end
+
+    AddTextEntry('esxVehicleKeysHelpNotification', message)
+    if thisFrame then
+        DisplayHelpTextThisFrame('esxVehicleKeysHelpNotification', false)
+        return
+    end
+
+    BeginTextCommandDisplayHelp('esxVehicleKeysHelpNotification')
+    EndTextCommandDisplayHelp(0, false, false, duration or -1)
+end
+
+local function CanSearchVehicleForKeys(plate)
+    if not Config.RequireLockpickForSearchKeys then return true end
+    return searchableKeyPlates[plate] == true
+end
+
+local function MarkVehicleSearchableForKeys(plate)
+    if plate then searchableKeyPlates[plate] = true end
+end
+
+local function ClearVehicleSearchableForKeys(plate)
+    if plate then searchableKeyPlates[plate] = nil end
+end
+
+local function TryStartProgressbar(label, duration)
+    if Config.UseESXProgressbar == false or not ESX or not ESX.Progressbar then return false end
+
+    local ok, started = pcall(function()
+        return ESX.Progressbar(label, duration, {})
+    end)
+
+    return ok and started ~= false
 end
 
 local function ServerCallback(name, cb, ...)
@@ -126,6 +167,7 @@ local function Progress(label, duration, animation, onDone, onCancel)
     progressActive = true
     local ped = PlayerPedId()
     local canceled = false
+    local usingProgressbar = TryStartProgressbar(label, duration)
 
     if animation and animation.dict and animation.name then
         loadAnimDict(animation.dict)
@@ -141,7 +183,9 @@ local function Progress(label, duration, animation, onDone, onCancel)
             DisableControlAction(0, 30, true)
             DisableControlAction(0, 31, true)
             DisableControlAction(0, 75, true)
-            DrawText3D(GetEntityCoords(ped).x, GetEntityCoords(ped).y, GetEntityCoords(ped).z + 0.85, label)
+            if not usingProgressbar then
+                ShowHelpNotification(label, true)
+            end
             if IsEntityDead(ped) then
                 canceled = true
                 break
@@ -149,6 +193,9 @@ local function Progress(label, duration, animation, onDone, onCancel)
         end
 
         progressActive = false
+        if canceled and usingProgressbar and ESX and ESX.CancelProgressbar then
+            pcall(ESX.CancelProgressbar)
+        end
         if animation and animation.dict and animation.name then
             StopAnimTask(ped, animation.dict, animation.name, 1.0)
         end
@@ -320,17 +367,19 @@ CreateThread(function()
             local entering = GetVehiclePedIsTryingToEnter(ped)
 
             if entering ~= 0 and not isBlacklistedVehicle(entering) then
-                sleep = 1000
                 HandleVehicleEntry(entering)
             end
 
             if IsPedInAnyVehicle(ped, false) and not isHotwiring then
-                sleep = 500
-                HandleHotwirePrompt(ped)
+                if HandleHotwirePrompt(ped) then
+                    sleep = 0
+                else
+                    sleep = math.min(sleep, 500)
+                end
             end
 
             if Config.CarJackEnable and canCarjack then
-                sleep = 250
+                sleep = math.min(sleep, 250)
                 HandleCarjackPrompt(ped)
             end
         end
@@ -393,20 +442,26 @@ end
 
 function HandleHotwirePrompt(ped)
     local vehicle = GetVehiclePedIsIn(ped, false)
-    if vehicle == 0 then return end
+    if vehicle == 0 then return false end
 
     local plate = GetPlate(vehicle)
-    if not plate then return end
+    if not plate then return false end
 
-    if GetPedInVehicleSeat(vehicle, -1) == ped and not HasKeys(plate) and not isBlacklistedVehicle(vehicle) and not AreKeysJobShared(vehicle) then
-        local vehiclePos = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, 1.0, 0.5)
-        DrawText3D(vehiclePos.x, vehiclePos.y, vehiclePos.z, Lang:t('info.skeys'))
-        SetVehicleEngineOn(vehicle, false, false, true)
-
-        if IsControlJustPressed(0, 74) then
-            Hotwire(vehicle, plate)
-        end
+    if GetPedInVehicleSeat(vehicle, -1) ~= ped or HasKeys(plate) or isBlacklistedVehicle(vehicle) or AreKeysJobShared(vehicle) then
+        return false
     end
+
+    SetVehicleEngineOn(vehicle, false, false, true)
+    if not CanSearchVehicleForKeys(plate) then return false end
+
+    local vehiclePos = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, 1.0, 0.5)
+    DrawText3D(vehiclePos.x, vehiclePos.y, vehiclePos.z, Lang:t('info.skeys'))
+
+    if IsControlJustPressed(0, 74) then
+        Hotwire(vehicle, plate)
+    end
+
+    return true
 end
 
 function HandleCarjackPrompt(ped)
@@ -697,8 +752,10 @@ function Hotwire(vehicle, plate)
         name = 'machinic_loop_mechandplayer',
         flags = 16,
     }, function()
-        if math.random() <= Config.HotwireChance then
+        local success = Config.LockpickedSearchGuaranteesKeys or math.random() <= Config.HotwireChance
+        if success then
             TriggerServerEvent('esx_vehiclekeys:server:AcquireVehicleKeys', plate)
+            ClearVehicleSearchableForKeys(plate)
         else
             Notify(Lang:t('notify.fvlockpick'), 'error')
         end
@@ -809,12 +866,9 @@ function UseLockpick(isAdvanced)
 
         if success then
             lastPickedVehicle = vehicle
-            if GetPedInVehicleSeat(vehicle, -1) == ped then
-                TriggerServerEvent('esx_vehiclekeys:server:AcquireVehicleKeys', plate)
-            else
-                Notify(Lang:t('notify.vlockpick'), 'success')
-                TriggerServerEvent('esx_vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(vehicle), 1)
-            end
+            MarkVehicleSearchableForKeys(plate)
+            Notify(Lang:t('notify.vlockpick'), 'success')
+            TriggerServerEvent('esx_vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(vehicle), 1)
         else
             AttemptPoliceAlert('steal')
         end

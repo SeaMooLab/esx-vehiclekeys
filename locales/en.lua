@@ -18,7 +18,7 @@ local Translations = {
         takekeys = 'Taking keys from body...',
         hskeys = 'Searching for the car keys...',
         acjack = 'Attempting Carjacking...',
-        picklock = 'Picking the vehicle lock...',
+        picklock = 'Lockpicking vehicle...',
     },
     info = {
         skeys = '~g~[H]~w~ - Search for Keys',

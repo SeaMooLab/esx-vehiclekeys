@@ -31,6 +31,9 @@ Config.LockpickSuccessChance = 0.55
 Config.AdvancedLockpickSuccessChance = 0.75
 Config.LockpickTime = 7500
 Config.AdvancedLockpickTime = 4500
+Config.UseESXProgressbar = true
+Config.RequireLockpickForSearchKeys = true
+Config.LockpickedSearchGuaranteesKeys = true
 
 -- Carjack Settings
 Config.CarJackEnable = true

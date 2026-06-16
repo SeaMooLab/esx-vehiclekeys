@@ -29,7 +29,7 @@ ensure esx-vehiclekeys
 
 ### QS inventory note
 
-This ESX build ships with `Config.CustomInventory = 'qs'`, and its QS bridge calls `exports['qs-inventory']:CreateUsableItem(...)` from `ESX.RegisterUsableItem`. Your QS inventory build does not provide that export, so the resource now defaults `Config.RegisterLockpickUsableItems = 'auto'` and skips ESX usable-item registration when the QS bridge is detected. That prevents startup from faceplanting.
+This ESX build can ship with `Config.CustomInventory = 'qs'`, and its QS bridge may call `exports['qs-inventory']:CreateUsableItem(...)` from `ESX.RegisterUsableItem`. Some QS inventory builds do not provide that export, so the resource defaults `Config.RegisterLockpickUsableItems = 'auto'` and skips ESX usable-item registration when the QS bridge is detected. That prevents startup from faceplanting.
 
 For QS inventory, configure your lockpick item use handler to trigger one of these client events:
 
@@ -40,8 +40,15 @@ TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, true)  -- advan
 
 If you later fix/replace the QS bridge so `ESX.RegisterUsableItem` works, set `Config.RegisterLockpickUsableItems = 'esx'`.
 
+### Lockpicking and key search flow
 
-This port intentionally does not depend on `qb-core`, `qb-inventory`, `qb-minigames`, or `progressbar`. Lockpicking uses a dependency-free timed progress fallback and configurable success chances. If you want a fancy minigame, wire your minigame export into `UseLockpick` in `client.lua`; the integration point is deliberately small so you do not have to surgically extract QBCore spaghetti with barbecue tongs.
+Successful lockpicking now unlocks the vehicle and marks that plate as searchable instead of immediately granting keys. The driver must enter the vehicle and use the `[H] - Search for Keys` interaction to receive keys, controlled by `Config.RequireLockpickForSearchKeys` and `Config.LockpickedSearchGuaranteesKeys`. Failed lockpicks do not enable the search prompt.
+
+The in-vehicle search prompt is drawn every frame while active, which avoids the flickering caused by showing frame-bound text from a slow loop. Lockpicking/search progress tries `ESX.Progressbar` first if `esx_progressbar` is installed; otherwise it falls back to `ESX.ShowHelpNotification`, not a noisy feed notification or 3D hover text.
+
+### General notes
+
+This port intentionally does not depend on `qb-core`, `qb-inventory`, `qb-minigames`, or QBCore `progressbar`. Lockpicking uses a dependency-free timed progress fallback and configurable success chances. If you want a fancy minigame, wire your minigame export into `UseLockpick` in `client.lua`; the integration point is deliberately small so you do not have to surgically extract QBCore spaghetti with barbecue tongs.
 
 Persistent keys now match the current ESX metadata API shape from `server/classes/player.lua`: reads use `xPlayer.getMeta()` first so missing `vehicleKeys` does not explode under `Config.EnableDebug`, adds use `xPlayer.setMeta('vehicleKeys', plate, true)`, and removals use `xPlayer.clearMeta('vehicleKeys', plate)` when available. The table-write fallback is still there for older/custom ESX builds, because FiveM resources age like milk in a hot car.
 
