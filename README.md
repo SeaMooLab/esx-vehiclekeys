@@ -26,17 +26,17 @@ ensure esx-vehiclekeys
 4. Add `lockpick` and `advancedlockpick` to your ESX inventory item table if your inventory requires static item definitions.
 5. Review `config.lua`, especially `Config.PoliceJobs`, `Config.SharedKeys`, and persistence settings.
 
-## Compatibility notes
+## QS inventory and hotbar notes
 
-### QS inventory note
+This ESX build can ship with `Config.CustomInventory = 'qs'`, and its QS bridge may call `exports['qs-inventory']:CreateUsableItem(...)` from `ESX.RegisterUsableItem`. Some QS inventory builds do not provide that export.
 
-This ESX build can ship with `Config.CustomInventory = 'qs'`, and its QS bridge may call `exports['qs-inventory']:CreateUsableItem(...)` from `ESX.RegisterUsableItem`. Some QS inventory builds do not provide that export, so the resource defaults `Config.RegisterLockpickUsableItems = 'auto'` and skips ESX usable-item registration when the QS bridge is detected. That prevents startup from faceplanting.
+`Config.RegisterLockpickUsableItems = 'auto'` now still attempts `ESX.RegisterUsableItem`, but wraps registration in `pcall` so a missing QS export does not crash the resource. This is intentional: QS hotbar usage may rely on ESX's usable item callback table, and skipping registration entirely can produce the QS UI message `Cannot use this item from the hotbar`.
 
-For QS inventory, configure your lockpick item use handler to trigger one of these events:
+If you wire QS items directly, use one of these events:
 
 ```lua
-TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle', source, false) -- normal lockpick
-TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle', source, true)  -- advanced lockpick
+TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, false) -- normal lockpick
+TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, true)  -- advanced lockpick
 ```
 
 Or, from a server-side item event:
@@ -46,21 +46,21 @@ TriggerEvent('esx_vehiclekeys:server:UseLockpickItem', source, false) -- normal 
 TriggerEvent('esx_vehiclekeys:server:UseLockpickItem', source, true)  -- advanced lockpick
 ```
 
-`esx_vehiclekeys:client:UseLockpick` is still available as a backwards-compatible client event. If you later fix/replace the QS bridge so `ESX.RegisterUsableItem` works, set `Config.RegisterLockpickUsableItems = 'esx'`.
+`esx_vehiclekeys:client:LockpickVehicle` remains as a compatibility alias and runs the same animated `UseLockpick` flow.
 
-### Lockpicking and key search flow
+## Lockpicking and key search flow
 
 Successful lockpicking unlocks the vehicle and marks that plate as searchable instead of immediately granting keys. The driver must enter the vehicle and use the `[H] - Search for Keys` interaction to receive keys, controlled by `Config.RequireLockpickForSearchKeys` and `Config.LockpickedSearchGuaranteesKeys`. Failed lockpicks do not enable the search prompt.
 
 The in-vehicle search prompt is drawn every frame while active, which avoids flickering caused by showing frame-bound text from a slow loop. Lockpicking/search progress tries `ESX.Progressbar` first if `esx_progressbar` is installed; otherwise it falls back to `ESX.ShowHelpNotification`, not a noisy feed notification or 3D hover text.
 
-Lockpicking now plays a configurable mechanic-style animation (`Config.LockpickAnimation`) while the timed lockpick progress runs. The default animation uses `anim@amb@clubhouse@tutorial@bkr_tut_ig3@` / `machinic_loop_mechandplayer` with flag `49`; tweak that config if your server prefers a different animation.
+Lockpicking plays a configurable mechanic-style animation (`Config.LockpickAnimation`) while timed lockpick progress runs. The default animation uses `anim@amb@clubhouse@tutorial@bkr_tut_ig3@` / `machinic_loop_mechandplayer` with flag `49`; tweak that config if your server prefers a different animation.
 
-### General notes
+## General compatibility notes
 
 This port intentionally does not depend on `qb-core`, `qb-inventory`, `qb-minigames`, or QBCore `progressbar`. Lockpicking uses a dependency-free timed progress fallback and configurable success chances. If you want a fancy minigame, wire your minigame export into `UseLockpick` in `client.lua`; the integration point is deliberately small so you do not have to surgically extract QBCore spaghetti with barbecue tongs.
 
-Persistent keys now match the current ESX metadata API shape from `server/classes/player.lua`: reads use `xPlayer.getMeta()` first so missing `vehicleKeys` does not explode under `Config.EnableDebug`, adds use `xPlayer.setMeta('vehicleKeys', plate, true)`, and removals use `xPlayer.clearMeta('vehicleKeys', plate)` when available. The table-write fallback is still there for older/custom ESX builds, because FiveM resources age like milk in a hot car.
+Persistent keys match the current ESX metadata API shape from `server/classes/player.lua`: reads use `xPlayer.getMeta()` first so missing `vehicleKeys` does not explode under `Config.EnableDebug`, adds use `xPlayer.setMeta('vehicleKeys', plate, true)`, and removals use `xPlayer.clearMeta('vehicleKeys', plate)` when available. The table-write fallback is still there for older/custom ESX builds, because FiveM resources age like milk in a hot car.
 
 ## Exports
 

@@ -160,25 +160,21 @@ local function ShouldRegisterUsableLockpickItems()
     if mode == false or mode == 'disabled' or mode == 'none' then return false end
     if not ESX.RegisterUsableItem then return false end
 
-    local customInventory = GetESXCustomInventory()
-    if mode == 'auto' and customInventory == 'qs' then
-        print("[esx-vehiclekeys] ESX CustomInventory qs detected; skipping ESX.RegisterUsableItem because this es_extended bridge calls qs-inventory:CreateUsableItem, which is missing in some QS builds. Configure QS item usage to trigger esx_vehiclekeys:client:UseLockpick instead, or set Config.RegisterLockpickUsableItems = 'esx' to force it.")
-        return false
-    end
-
     return true
 end
 
 local function RegisterUsableLockpickItem(itemName, isAdvanced)
+    local customInventory = GetESXCustomInventory()
     local ok, err = pcall(function()
         ESX.RegisterUsableItem(itemName, function(source)
-            TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle', source, isAdvanced)
+            TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', source, isAdvanced)
         end)
     end)
 
-    if not ok then
-        print(('[esx-vehiclekeys] Failed to register usable item %s: %s'):format(itemName, tostring(err)))
-    end
+    if ok then return end
+
+    print(('[esx-vehiclekeys] ESX.RegisterUsableItem(%s) raised an error under CustomInventory=%s: %s'):format(itemName, tostring(customInventory), tostring(err)))
+    print('[esx-vehiclekeys] If your ESX bridge stores the usable callback before calling the missing inventory export, the item may still work. If QS hotbar says the item cannot be used, either patch the ESX QS bridge or wire QS item usage to esx_vehiclekeys:server:UseLockpickItem.')
 end
 
 local function RegisterUsableLockpickItems()
@@ -226,7 +222,7 @@ RegisterNetEvent('esx_vehiclekeys:server:UseLockpickItem', function(firstArg, se
     end
 
     if not target or target <= 0 then return end
-    TriggerClientEvent('esx_vehiclekeys:client:LockpickVehicle', target, isAdvanced)
+    TriggerClientEvent('esx_vehiclekeys:client:UseLockpick', target, isAdvanced)
 end)
 
 RegisterNetEvent('esx_vehiclekeys:server:setVehLockState', function(vehNetId, state)
